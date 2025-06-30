@@ -72,3 +72,87 @@ def transitions(s, a):
         s2 = move(s, act)
         probs[s2] = probs.get(s2, 0) + p
     return probs
+
+# --- Value Iteration ---------------------------------------------------------
+
+def value_iteration(theta=1e-5):
+    states = [(x, y) for x in range(1, COLS+1)
+                      for y in range(1, ROWS+1)
+                      if (x,y) != OBSTACLE]
+    # initialize U(s)=0 for non-terminals, or to reward for terminals
+    U = {s: (reward(s) if is_terminal(s) else 0.0) for s in states}
+
+    while True:
+        delta_max = 0
+        U_new = U.copy()
+        for s in states:
+            if is_terminal(s):
+                continue
+            # Bellman update
+            q_values = []
+            for a in ACTIONS:
+                q = sum(p * U[s2] for s2, p in transitions(s, a).items())
+                q_values.append(q)
+            U_new[s] = reward(s) + GAMMA * max(q_values)
+            delta_max = max(delta_max, abs(U_new[s] - U[s]))
+        U = U_new
+        if delta_max < theta:
+            break
+
+    # extract greedy policy
+    pi = {}
+    for s in states:
+        if is_terminal(s):
+            pi[s] = None
+        else:
+            best_a = max(ACTIONS,
+                          key=lambda a: sum(p * U[s2]
+                                            for s2, p in transitions(s, a).items()))
+            pi[s] = best_a
+    return U, pi
+
+# --- Policy Iteration --------------------------------------------------------
+
+def policy_iteration():
+    states = [(x, y) for x in range(1, COLS+1)
+                      for y in range(1, ROWS+1)
+                      if (x,y) != OBSTACLE]
+    # initialize arbitrary policy (e.g. always 'up')
+    pi = {s: (None if is_terminal(s) else 'up') for s in states}
+    # initialize U(s)=0
+    U = {s: 0.0 for s in states}
+
+    is_value_changed = True
+    while True:
+        # Policy Evaluation (in-place iterative until small change)
+        while True:
+            delta_max = 0
+            for s in states:
+                if is_terminal(s):
+                    continue
+                # evaluate U under fixed pi
+                q = sum(p * U[s2] for s2, p in transitions(s, pi[s]).items())
+                U_new = reward(s) + GAMMA * q
+                delta_max = max(delta_max, abs(U_new - U[s]))
+                U[s] = U_new
+            if delta_max < 1e-5:
+                break
+
+        # Policy Improvement
+        policy_stable = True
+        for s in states:
+            if is_terminal(s):
+                continue
+            old_action = pi[s]
+            # find best action under current U
+            best_a = max(ACTIONS,
+                          key=lambda a: sum(p * U[s2]
+                                            for s2, p in transitions(s, a).items()))
+            pi[s] = best_a
+            if best_a != old_action:
+                policy_stable = False
+
+        if policy_stable:
+            break
+
+    return U, pi
