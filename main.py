@@ -156,3 +156,40 @@ def policy_iteration():
             break
 
     return U, pi
+
+# --- Utility to pretty-print tables -----------------------------------------
+
+def make_tables(U, pi):
+    """Returns two pandas DataFrames (utilities and policy) indexed by Y=3→1."""
+    util_df   = pd.DataFrame(index=[3,2,1], columns=[1,2,3,4], dtype=float)
+    policy_df = pd.DataFrame(index=[3,2,1], columns=[1,2,3,4], dtype=object)
+    for y in [3,2,1]:
+        for x in [1,2,3,4]:
+            if (x,y) == OBSTACLE:
+                util_df.at[y,x]   = np.nan
+                policy_df.at[y,x] = None
+            else:
+                util_df.at[y,x]   = U.get((x,y), np.nan)
+                policy_df.at[y,x] = pi.get((x,y), None)
+    return util_df, policy_df
+
+def print_tables(title, util_df, policy_df):
+    print(f"\n=== {title} ===")
+    print("\nUtilities U(s):")
+    print(util_df.round(3).to_string())
+    print("\nPolicy π*(s):")
+    print(policy_df.fillna('─').to_string())
+
+
+# --- Main --------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # Value Iteration
+    U_vi, pi_vi = value_iteration()
+    uti_vi, pol_vi = make_tables(U_vi, pi_vi)
+    print_tables("Value Iteration", uti_vi, pol_vi)
+
+    # Policy Iteration
+    U_pi, pi_pi = policy_iteration()
+    uti_pi, pol_pi = make_tables(U_pi, pi_pi)
+    print_tables("Policy Iteration", uti_pi, pol_pi)
